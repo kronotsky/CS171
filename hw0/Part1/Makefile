@@ -5,10 +5,10 @@
 # convenient.
 ###############################################################################
 CC = g++
-FLAGS = -g
+FLAGS = -g -std=c++11
 SOURCES = *.h *.cpp
 
-EXENAME = my_prog
+EXENAME = parse_obj
 
 all: $(SOURCES)
 	$(CC) $(FLAGS) -o $(EXENAME) $(SOURCES)

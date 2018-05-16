@@ -14,7 +14,7 @@ FLAGS = -g -std=c++11
 # INCLUDE = -I../
 
 # No *.h files:
-SOURCES = *.cpp *.h
+SOURCES = *.cpp *.hh
 
 EXENAME = myprog
 

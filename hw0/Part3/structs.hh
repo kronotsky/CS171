@@ -4,25 +4,26 @@
 
 using namespace std;
 
-#ifndef __VERTEX__
-#define __VERTEX__
+// #ifndef __VERTEX__
+// #define __VERTEX__
 
 struct Vertex {
     float x, y, z;
 };
 
-#endif
+// #endif
 
-#ifndef __FACE__
-#define __FACE__
+// #ifndef __FACE__
+// #define __FACE__
+
 struct Face {
     int a, b, c;
 };
 
-#endif
+// #endif
 
-#ifndef __OBJECT__
-#define __OBJECT__
+// #ifndef __OBJECT__
+// #define __OBJECT__
 
 struct Object {
     vector<Vertex> vertices;
@@ -37,4 +38,11 @@ struct Object {
     }
 };
 
-#endif
+//#endif
+
+Eigen::Matrix4d translation(double tx, double ty, double tz);
+Eigen::Matrix4d scaling(double sx, double sy, double sz);
+Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi);
+vector<string> split(string line, char delim = ' ');
+Object parse_obj(ifstream &objfile);
+Object transform(Object &obj, const Eigen::Matrix4d &trans);

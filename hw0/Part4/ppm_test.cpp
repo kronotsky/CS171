@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     int xc = xres >> 1;
     int yc = yres >> 1;
     // Operator practice:
-    int sqdiam = (xres > yres) ? xc*xc : yc*yc;
+    int sqdiam = (xres > yres) ? yc*yc : xc*xc;
     cout << "P3" << endl << xres << " " << yres << endl << 255 << endl;
     for (j = -yc; j < yres - yc; j++) {
 	for (i = -xc; i < xres - xc; i++) {

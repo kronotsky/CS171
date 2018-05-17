@@ -86,6 +86,26 @@ struct Pixel {
     Pixel(int xi, int yi) : x(xi), y(yi) { };
 };
 
+struct Grid {
+    int xres, yres;
+    int *grid;
+
+    Grid(int xr, int yr) : xres(xr), yres(yr) {
+	grid = new grid[xr * yr]();
+    }
+    ~Grid() {
+	delete[] grid;
+    }
+
+    void set(int x, int y, int val) {
+	grid[x + y * xres] = val;
+    }
+
+    int get(int x, int y) const {
+	return grid[x + y * xres];
+    }
+};
+
 
 // Function prototypes, to go into routines.cpp:
 Eigen::Matrix4d translation(double tx, double ty, double tz);

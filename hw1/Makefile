@@ -11,7 +11,7 @@ FLAGS = -g -std=c++11
 # folder--which your program will depend on--is located one directory above the
 # directory that contains this Makefile.
 INCLUDE = -I../
-SOURCES = *.h *.cpp
+SOURCES = *.hh *.cpp
 
 EXENAME = wireframe
 

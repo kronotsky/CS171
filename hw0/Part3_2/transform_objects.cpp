@@ -55,7 +55,7 @@ void parse_transform(ifstream &trfile) {
 	    }
 	}
 	Object trans;
-	trans = objs[objname].transform(cum);
+	trans = objs[objname].transformed(cum);
 	cout << objname << " copy #" << copycount[objname] << endl;
 	trans.print();
     }

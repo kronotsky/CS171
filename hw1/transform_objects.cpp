@@ -36,11 +36,10 @@ void parse_scene(ifstream &trfile) {
     string line;
     map<string, Object> objmap;
     vector<Object> torender;
-    Eigen::Matrix4d pos, ori;
+    Eigen::Matrix4d pos, ori, camera, persp;
     double n, f, l, r, t, b;
 
-    // Parse camera directives:
-    
+    // Parse camera directives:    
     if (getline(trfile, line) && line == "camera:") {
 	while (getline(trfile, line) && !line.empty()) {
 	    tokens = split(line);
@@ -78,6 +77,11 @@ void parse_scene(ifstream &trfile) {
 	return;
     }
 
+    // Get transformations:
+    persp = perspective(n, r, l, t, b, f);
+    camera = (pos * ori).inverse();
+
+    // Insert objects into map:
     if (getline(trfile, line) && line == "objects:" ) {
 	while (getline(trfile, line) && !line.empty()) {
 	    tokens = split(line);
@@ -118,6 +122,15 @@ void parse_scene(ifstream &trfile) {
 
 	// Apply the object's transformations:
 	Object trans = objmap[objname].transformed(parse_transformations(trfile));
+	trans.print();
+
+	// Apply camera transformation then perspective transformation:
+	trans *= camera;
+	trans *= persp;
+	
+	cout << camera << endl << endl;
+	cout << persp << endl << endl;
+	torender.push_back(trans);	
 	cout << objname << endl;
 	trans.print();
     }

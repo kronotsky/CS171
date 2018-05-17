@@ -91,11 +91,16 @@ struct Grid {
     int *grid;
 
     Grid(int xr, int yr) : xres(xr), yres(yr) {
-	grid = new grid[xr * yr]();
+	grid = new int[xr * yr];
+	for (int i = 0; i < xr * yr; i++)
+	    grid[i] = 0;
     }
+    Grid(Grid &old) : Grid(old.xres, old.yres) { }
+    
     ~Grid() {
 	delete[] grid;
     }
+    
 
     void set(int x, int y, int val) {
 	grid[x + y * xres] = val;
@@ -105,6 +110,7 @@ struct Grid {
 	return grid[x + y * xres];
     }
 };
+
 
 
 // Function prototypes, to go into routines.cpp:

@@ -134,14 +134,10 @@ vector<Object> parse_scene(ifstream &trfile) {
     return torender;
 }
 
-void setpixel(int x, int y, int *grid, int xres, int val) {
-    grid[x + y * xres] = val;
-}
-
-void rasterize(Pixel a, Pixel b, Grid im) {
+void rasterize(Pixel a, Pixel b, Grid &im) {
     // Get dx and dy:
-    int dx = a.x - b.x;
-    int dy = a.y - b.y;
+    int dx = b.x - a.x;
+    int dy = b.y - a.y;
 
     // Obtain the signs:
     int sx = (dy >= 0) ? 1 : -1;
@@ -190,11 +186,10 @@ void rasterize(Pixel a, Pixel b, Grid im) {
 	    eps += ds - dl;
 	    s += 1;
 	}
-    }
-    
+    }    
 }
 
-void render(Object obj, Grid im, int xres, int yres) {
+void render(Object obj, Grid &im, int xres, int yres) {
     vector<Pixel> pixels;
     vector<Face> faces = obj.faces;
     vector<Vertex> vertices = obj.cartesian_vertices();
@@ -216,16 +211,24 @@ void render(Object obj, Grid im, int xres, int yres) {
 	c = f.c - 1;
 	if (exclude[a] || exclude[b] || exclude[c])
 	    continue;
-	rasterize(pixels[a], pixels[b], im, xres, yres);
-	rasterize(pixels[b], pixels[c], im, xres, yres);
-	rasterize(pixels[c], pixels[a], im, xres, yres);
+	rasterize(pixels[a], pixels[b], im);
+	rasterize(pixels[b], pixels[c], im);
+	rasterize(pixels[c], pixels[a], im);
     }
     delete[] exclude;
 }
 
-void grid_to_ppm(Grid im) {
-    // To do: test rasterization using this method
-}
+void grid_to_ppm(Grid &im) {
+    int i, j, k;
+    cout << "P3" << endl << im.xres << " " << im.yres << endl << 255 << endl;
+    for (j = 0; j < im.yres; j++) {
+	for (i = 0; i < im.xres; i++) {
+	    for (k = 0; k < 3; k++)
+		cout << im.get(i, j) << " ";
+	    cout << endl;
+	}
+    }
+ }
 
 int main(int argc, char *argv[]) {
     ifstream transfile;
@@ -242,8 +245,12 @@ int main(int argc, char *argv[]) {
 	cout << "Filename " << argv[1] << " not found!" << endl;
 	return 1;
     }
-    vector<Object> torender = parse_scene(transfile);
+    // vector<Object> torender = parse_scene(transfile);
     Grid im(xres, yres);
+    Pixel a(0, 0);
+    Pixel b(xres, yres / 2);
+    rasterize(a, b, im);
+    grid_to_ppm(im);
 }
 
 

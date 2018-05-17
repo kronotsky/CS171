@@ -31,7 +31,7 @@ Eigen::Matrix4d parse_transformations(ifstream &trfile) {
     return cum;
 }
 
-void parse_scene(ifstream &trfile) {
+vector<Object> parse_scene(ifstream &trfile) {
     vector <string> tokens;
     string line;
     map<string, Object> objmap;
@@ -73,8 +73,8 @@ void parse_scene(ifstream &trfile) {
     }
     else {
 	cout << "Expected camera directive; instead got '" <<
-	    line << "', exiting.";
-	return;
+	    line << "', exiting with empty render list.";
+	return torender;
     }
 
     // Get transformations:
@@ -99,8 +99,8 @@ void parse_scene(ifstream &trfile) {
     }
     else {
 	cout << "Expected objects directive; instead got '" <<
-	    line << "', exiting.";
-	return;
+	    line << "', exiting with empty render list.";
+	return torender;
     }
 
 
@@ -122,31 +122,62 @@ void parse_scene(ifstream &trfile) {
 
 	// Apply the object's transformations:
 	Object trans = objmap[objname].transformed(parse_transformations(trfile));
-	trans.print();
-
 	// Apply camera transformation then perspective transformation:
-	trans *= camera;
-	trans *= persp;
+	trans *= (persp * camera);
 	
-	cout << camera << endl << endl;
-	cout << persp << endl << endl;
 	torender.push_back(trans);	
 	cout << objname << endl;
 	trans.print();
     }
+    return torender;
+}
+
+void rasterize(Pixel a, Pixel b, int *grid, int xres, int yres);
+
+void render(Object obj, int *grid, int xres, int yres) {
+    vector<Pixel> pixels;
+    vector<Face> faces = obj.faces;
+    vector<Vertex> vertices = obj.cartesian_vertices();
+    bool *exclude = new bool[vertices.size()];
+    int x, y, i, a, b, c;
+
+    for (i = 0; i < vertices.size(); i++) {
+	x = (int)((vertices[i].x + 1) * (float)((xres - 1) >> 1));
+	y = (int)((vertices[i].y + 1) * (float)((yres - 1) >> 1));
+	pixels.push_back(Pixel(x, y));
+	if ((0 <= x < xres) && (0 <= y < yres))
+	    exclude[i] = 0;
+	else
+	    exclude[i] = 1;
+    }
+    for (const auto &f : faces) {
+	a = f.a - 1;
+	b = f.b - 1;
+	c = f.c - 1;
+	if (exclude[a] || exclude[b] || exclude[c])
+	    continue;
+	rasterize(pixels[a], pixels[b], grid, xres, yres);
+	rasterize(pixels[b], pixels[c], grid, xres, yres);
+	rasterize(pixels[c], pixels[a], grid, xres, yres);
+    }
+    delete[] exclude;
 }
 
 int main(int argc, char *argv[]) {
     ifstream transfile;
-    if (argc != 2) {
-	cout << "Usage: " << argv[0] << " file " << endl;
+    int xres, yres;
+    if (argc != 4) {
+	cout << "Usage: " << argv[0] << " [filename] [xres] [yres]" << endl;
 	return 1;
     }
+    xres = stoi(argv[2]);
+    yres = stoi(argv[3]);
     
     transfile.open(argv[1]);
     if (!(transfile.is_open())) {
 	cout << "Filename " << argv[1] << " not found!" << endl;
 	return 1;
     }
-    parse_scene(transfile);
+    vector<Object> torender = parse_scene(transfile);
+    int *grid = new int[xres * yres];
 }

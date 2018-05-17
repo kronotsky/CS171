@@ -80,6 +80,12 @@ struct Object {
 
 #endif
 
+struct Pixel {
+    int x, y;
+    Pixel() : x(0), y(0) { };
+    Pixel(int xi, int yi) : x(xi), y(yi) { };
+};
+
 
 // Function prototypes, to go into routines.cpp:
 Eigen::Matrix4d translation(double tx, double ty, double tz);

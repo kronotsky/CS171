@@ -80,9 +80,14 @@ struct Object {
 
 #endif
 
+
+// Function prototypes, to go into routines.cpp:
 Eigen::Matrix4d translation(double tx, double ty, double tz);
 Eigen::Matrix4d scaling(double sx, double sy, double sz);
 Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi);
+Eigen::Matrix4d perspective(double n, double r, double l, double t, \
+			    double b, double f);
 vector<string> split(string line, char delim = ' ');
 Object parse_obj(ifstream &objfile);
 Object transform(Object &obj, const Eigen::Matrix4d &trans);
+

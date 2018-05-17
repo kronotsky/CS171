@@ -128,8 +128,8 @@ vector<Object> parse_scene(ifstream &trfile) {
 	trans *= (persp * camera);
 	
 	torender.push_back(trans);	
-	cout << objname << endl;
-	trans.print();
+	// cout << objname << endl;
+	// trans.print();
     }
     return torender;
 }
@@ -140,8 +140,8 @@ void rasterize(Pixel a, Pixel b, Grid &im) {
     int dy = b.y - a.y;
 
     // Obtain the signs:
-    int sx = (dy >= 0) ? 1 : -1;
-    int sy = (dx >= 0) ? 1 : -1;
+    int sx = (dx >= 0) ? 1 : -1;
+    int sy = (dy >= 0) ? 1 : -1;
 
     // bool xlong is true iff abs(dx) >= abs(dy)
     bool xlong;
@@ -159,7 +159,7 @@ void rasterize(Pixel a, Pixel b, Grid &im) {
     }
     else {
 	dl = dy * sy;
-	ds = dx * sy;
+	ds = dx * sx;
 	xlong = false;
     }
 
@@ -168,6 +168,9 @@ void rasterize(Pixel a, Pixel b, Grid &im) {
     int eps = 0;
     int s = 0;
     int l;
+    // cout << a.x << " " << a.y << endl;
+    // cout << dl << " " << ds << " " << endl;
+    // cout << dx << " " << dy << " " << sx << " " << sy << " " << endl;
     for (l = 0; l < dl; l++) {
 
 	// This is where the generalization happens: map l, s onto
@@ -189,7 +192,7 @@ void rasterize(Pixel a, Pixel b, Grid &im) {
     }    
 }
 
-void render(Object obj, Grid &im, int xres, int yres) {
+void render(Object obj, Grid &im) {
     vector<Pixel> pixels;
     vector<Face> faces = obj.faces;
     vector<Vertex> vertices = obj.cartesian_vertices();
@@ -197,10 +200,10 @@ void render(Object obj, Grid &im, int xres, int yres) {
     int x, y, i, a, b, c;
 
     for (i = 0; i < vertices.size(); i++) {
-	x = (int)((vertices[i].x + 1) * (float)((xres - 1) >> 1));
-	y = (int)((vertices[i].y + 1) * (float)((yres - 1) >> 1));
+	x = (int)((vertices[i].x + 1) * (float)((im.xres - 1) >> 1));
+	y = (int)((vertices[i].y + 1) * (float)((im.yres - 1) >> 1));
 	pixels.push_back(Pixel(x, y));
-	if ((0 <= x < xres) && (0 <= y < yres))
+	if ((0 <= x < im.xres) && (0 <= y < im.yres))
 	    exclude[i] = 0;
 	else
 	    exclude[i] = 1;
@@ -245,11 +248,14 @@ int main(int argc, char *argv[]) {
 	cout << "Filename " << argv[1] << " not found!" << endl;
 	return 1;
     }
-    // vector<Object> torender = parse_scene(transfile);
+    vector<Object> torender = parse_scene(transfile);
     Grid im(xres, yres);
-    Pixel a(0, 0);
-    Pixel b(xres, yres / 2);
-    rasterize(a, b, im);
+    for (const auto &obj : torender) {
+    	render(obj, im);
+    }
+    // Pixel a(0, yres);
+    // Pixel b(xres / 2, 0);
+    // rasterize(b, a, im);
     grid_to_ppm(im);
 }
 

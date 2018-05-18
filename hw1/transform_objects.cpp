@@ -9,22 +9,21 @@
 Eigen::Matrix4d parse_transformations(ifstream &trfile) {
     vector<string> tokens;
     string line;
-
     Eigen::Matrix4d cum = Eigen::MatrixXd::Identity(4,4);
     
     while (getline(trfile, line) && !line.empty()) {
 	tokens = split(line);
 	if ((tokens.size() == 4) && (tokens[0] == "t")) {
-	    cum *= translation(stod(tokens[1]), stod(tokens[2]),	\
-			       stod(tokens[3]));
+	    cum = translation(stod(tokens[1]), stod(tokens[2]),	\
+			      stod(tokens[3])) * cum;
 	}
 	else if ((tokens.size() == 4) && (tokens[0] == "s")) {
-	    cum *= scaling(stod(tokens[1]), stod(tokens[2]),	\
-			   stod(tokens[3]));
+	    cum = scaling(stod(tokens[1]), stod(tokens[2]),	\
+			   stod(tokens[3])) * cum;
 	}
 	else if ((tokens.size() == 5) && (tokens[0] == "r")) {
-	    cum *= rotation(stod(tokens[1]), stod(tokens[2]),		\
-			    stod(tokens[3]), stod(tokens[4]));
+	    cum = rotation(stod(tokens[1]), stod(tokens[2]),		\
+			   stod(tokens[3]), stod(tokens[4])) * cum;
 	}
 	else {
 	    cout << "Bad line: '" << line << "', skipping." << endl;
@@ -81,7 +80,7 @@ vector<Object> parse_scene(ifstream &trfile) {
 
     // Get transformations:
     persp = perspective(n, r, l, t, b, f);
-    camera = (pos * ori).inverse();
+    camera = (ori * pos).inverse();
 
     // Insert objects into map:
     if (getline(trfile, line) && line == "objects:" ) {
@@ -198,14 +197,15 @@ void render(Object obj, Grid &im) {
     vector<Vertex> vertices = obj.cartesian_vertices();
     bool *exclude = new bool[vertices.size()];
     int x, y, i, a, b, c;
-
+    
     for (i = 0; i < vertices.size(); i++) {
 	x = (int)((vertices[i].x + 1) * (float)((im.xres - 1) >> 1));
-	y = (int)((vertices[i].y + 1) * (float)((im.yres - 1) >> 1));
+	y = im.yres - (int)((vertices[i].y + 1) * (float)((im.yres - 1) >> 1));
 	pixels.push_back(Pixel(x, y));
-	if ((0 <= x < im.xres) && (0 <= y < im.yres))
+
+	if ((0 <= x) && (x < im.xres) && (0 <= y) && (y < im.yres))
 	    exclude[i] = 0;
-	else
+	else 
 	    exclude[i] = 1;
     }
     for (const auto &f : faces) {
@@ -259,4 +259,7 @@ int main(int argc, char *argv[]) {
     grid_to_ppm(im);
 }
 
+
+// TO DO: Pretty sure rasterize and grid_to_ppm are 100% functional. Therefore, need
+// to debug render.
 

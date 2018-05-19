@@ -28,12 +28,15 @@ struct Face {
 
 struct Object {
     vector<Eigen::Vector4d> vertices;
+    vector<Eigen::Vector4d> normals;
     vector<Face> faces;
     
     Object() { };
-    Object(vector<Eigen::Vector4d> vs, vector<Face> fs) : vertices(vs), faces(fs) { };
+    Object(vector<Eigen::Vector4d> vs, vector<Eigen::4d> ns, vector<Face> fs)\
+	: vertices(vs), faces(fs), normals(ns) { };
     Object(const Object &source) : vertices(source.vertices), \
-                                   faces(source.faces) { };
+                                   faces(source.faces), \
+				   normals(source.normals) { };
     
     Object transformed(Eigen::Matrix4d trans) const {
 	Object ret(*this);
@@ -44,6 +47,15 @@ struct Object {
     Object & operator*=(Eigen::Matrix4d trans) {
 	for (auto &v : vertices) {
 	    v = trans * v;
+	}
+
+	// Note: I am using a representation of normals such that
+	// the fourth component is 0. Thus translation matrices are
+	// the identity on this subspace, and there is no w component
+	// to interfere with the norm calculation.
+	for (auto &n : normals) {
+	    n = (trans.inverse().transpose()) * n;
+	    n = n / n.norm();
 	}
 	return *this;
     }
@@ -86,28 +98,59 @@ struct Pixel {
     Pixel(int xi, int yi) : x(xi), y(yi) { };
 };
 
+struct Color {
+    float r, g, b;
+    Color() : r(0), g(0), b(0) { };
+    Color(int ri, int gi, int bi) : r(ri), g(gi), b(bi) { };
+
+    Color & flatten() {
+	r = (r > 1) ? 1 : r;
+	g = (g > 1) ? 1 : g;
+	b = (b > 1) ? 1 : b;	
+    }
+}
+
 struct Grid {
     int xres, yres;
-    int *grid;
-
+    int *r, *g, *b;
+    
     Grid(int xr, int yr) : xres(xr), yres(yr) {
-	grid = new int[xr * yr];
+	r = new int[xr * yr];
+	g = new int[xr * yr];
+	b = new int[xr * yr];
 	for (int i = 0; i < xr * yr; i++)
-	    grid[i] = 0;
+	    *r = *g = *b = 0;
     }
-    Grid(Grid &old) : Grid(old.xres, old.yres) { }
+    
+    Grid(Grid &old) : xres(old.xres), yres(old.yres) {
+	r = new int[xres * yres];
+	g = new int[xres * yres];
+	b = new int[xres * yres];
+	for (int i = 0; i < xres * yres; i++) {
+	    r[i] = old.r[i];
+	    g[i] = old.g[i];
+	    b[i] = old.b[i];
+	}
+    }
     
     ~Grid() {
-	delete[] grid;
+	delete[] r;
+	delete[] g;
+	delete[] b;
     }
     
 
-    void set(int x, int y, int val) {
-	grid[x + y * xres] = val;
+    void fill(int x, int y, Color col) {
+	r[x + y * xres] = (int)(255 * col.r);
+	g[x + y * xres] = (int)(255 * col.g);
+	b[x + y * xres] = (int)(255 * col.b);	
     }
 
-    int get(int x, int y) const {
-	return grid[x + y * xres];
+    Color get(int x, int y) const {
+	return Color((float)(r[x + y * res]) / 255.0 \
+		     (float)(g[x + y * res]) / 255.0 \
+		     (float)(b[x + y * res]) / 255.0)
+		     
     }
 };
 

@@ -9,9 +9,11 @@
 // just Google the code if you want to find it)
 vector<string> split(string line, char delim) {
     vector<string> ret;
+    string topush;
 
     // Transition into C:
-    char *str;
+    char *str = new char[line.size() + 1];
+    char *todel = str;
     strcpy(str, line.c_str());
 
     do {
@@ -21,22 +23,52 @@ vector<string> split(string line, char delim) {
 	// inc until at null terminator or delimiter:
 	while (*str != delim && *str)
 	    str++;
-
 	// string(begin, str) returns a string starting at begin and
 	// ending the character before str:
-	ret.push_back(string(begin, str));
+	topush = string(begin, str);
+	if(topush != "")
+	    ret.push_back(topush);	
     } while (*str++ != 0);
 
     // the while condition puts str at the point past the null terminator/
     // delimiter; in the former case *str++ evals to the null terminator so
     // the loop ends.
+    delete[] todel;
     
     return ret;
 }
 
 
+Eigen::Matrix4d parse_transformations(ifstream &trfile) {
+    vector<string> tokens;
+    string line;
+    Eigen::Matrix4d cum = Eigen::MatrixXd::Identity(4,4);
+    
+    while (getline(trfile, line) && !line.empty()) {
+	tokens = split(line);
+	if ((tokens.size() == 4) && (tokens[0] == "t")) {
+	    cum = translation(stod(tokens[1]), stod(tokens[2]),	\
+			      stod(tokens[3])) * cum;
+	}
+	else if ((tokens.size() == 4) && (tokens[0] == "s")) {
+	    cum = scaling(stod(tokens[1]), stod(tokens[2]),	\
+			   stod(tokens[3])) * cum;
+	}
+	else if ((tokens.size() == 5) && (tokens[0] == "r")) {
+	    cum = rotation(stod(tokens[1]), stod(tokens[2]),		\
+			   stod(tokens[3]), stod(tokens[4])) * cum;
+	}
+	else {
+	    cout << "Bad line: '" << line << "', skipping." << endl;
+	}
+    }
+    return cum;
+}
+
+
 // Object parser (NEEDS TO CHANGE FOR HW2)
 Object parse_obj(ifstream &objfile) {
+    int i;
     vector<string> tokens;
     string line;
     Object nope;
@@ -56,12 +88,26 @@ Object parse_obj(ifstream &objfile) {
 	    nope.vertices.push_back(vert);
 	}
 
+	else if (tokens[0] == "vn") {
+	    Eigen::Vector4d norm;
+	    norm << stod(tokens[1]), stod(tokens[2]), stod(tokens[3]), 0;
+	    nope.normals.push_back(norm);
+	}
+
 	// Add face:
 	else if (tokens[0] == "f") {
 	    Face face;
-	    face.a = stoi(tokens[1]);
-	    face.b = stoi(tokens[2]);
-	    face.c = stoi(tokens[3]);
+	    vector<int> fd;
+	    for (i = 1; i < 4; i++) {
+		fd.push_back(stoi(split(tokens[i], '/')[0]));
+		fd.push_back(stoi(split(tokens[i], '/')[1]));
+	    }
+	    face.va = fd[0];
+	    face.vb = fd[2];
+	    face.vc = fd[4];
+	    face.na = fd[1];
+	    face.nb = fd[3];
+	    face.nc = fd[5];
 	    nope.faces.push_back(face);
 	}
 	else {
@@ -72,8 +118,59 @@ Object parse_obj(ifstream &objfile) {
     return nope;
 }
 
+vector<Light> parse_lights(ifstream &scfile) {
+    vector<string> tokens;
+    string line;
+    vector<Light> ret;
+    while (getline(scfile, line) && !line.empty()) {
+	tokens = split(line);
+	if (tokens[0] != "light") {
+	    cout << "Bad line '" << line << "', expected light directive." << endl;
+	    return ret;
+	}
+	Light toadd;
+	toadd.x = stod(tokens[1]);
+	toadd.y = stod(tokens[2]);
+	toadd.z = stod(tokens[3]);
+	toadd.col = Color(stod(tokens[5]), stod(tokens[6]), stod(tokens[7]));
+	toadd.k = stod(tokens[9]);
+	ret.push_back(toadd);
+    }
+    return ret;
+}
 
+map<string, Object> parse_object_names(ifstream &scfile) {
+    vector<string> tokens;
+    string line;
+    map<string, Object> objmap;
+    if (getline(scfile, line) && line == "objects:" ) {
+	while (getline(scfile, line) && !line.empty()) {
+	    tokens = split(line);
+	    if (tokens.size() != 2) {
+		cout << "Bad object file line!" << endl;
+		continue;
+	    }
+	    ifstream objfile;
+	    objfile.open(tokens[1]);
+	    if (!(objfile.is_open())) {
+		cout << "Filename " << tokens[1] << " not found!" << endl;
+	    }
+	    objmap.insert(make_pair(tokens[0], parse_obj(objfile)));
+	}
+    }
+    else {
+	cout << "Expected objects directive; instead got '" <<
+	    line << "', exiting with empty render list.";
+	return objmap;
+    }
+    return objmap;
+}
+
+
+//**************************************************
 // Transformation  matrices w/ standard parameters:
+//**************************************************
+
 
 Eigen::Matrix4d translation(double tx, double ty, double tz) {
     Eigen::Matrix4d t;
@@ -108,13 +205,45 @@ Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi) {
     return Eigen::MatrixXd::Identity(4,4) + r * sin(phi) + (r * r) * (1 - cos(phi));
 }
 
-Eigen::Matrix4d perspective(double n, double r, double l,\
-			    double t, double b, double f) {
-    Eigen::Matrix4d persp;
-    persp << (2 * n) / (r - l), 0, (r + l)/(r-l), 0,
-	      0, (2 * n) / (t - b), (t + b) / (t - b), 0,
-	      0, 0, - (f + n) / (f - n), (-2 * f * n)/(f - n),
-	      0, 0, -1, 0;
-    return persp;
+Camera parse_camera(ifstream &scfile) {
+    vector<string> tokens;
+    string line;
+    Camera c;
+    if (getline(scfile, line) && line == "camera:") {
+	while (getline(scfile, line) && !line.empty()) {
+	    tokens = split(line);
+	    if (tokens[0] == "position" && tokens.size() == 4) {
+		c.pos = translation(stod(tokens[1]), stod(tokens[2]), \
+				  stod(tokens[3]));
+	    }
+	    else if (tokens[0] == "orientation" && tokens.size() == 5) {
+		c.ori = rotation(stod(tokens[1]), stod(tokens[2]), \
+			       stod(tokens[3]), stod(tokens[4]));
+	    }
+	    else if (tokens.size() == 2) {
+		if (tokens[0] == "near")
+		    c.n = stod(tokens[1]);
+		else if (tokens[0] == "far")
+		    c.f = stod(tokens[1]);
+		else if (tokens[0] == "left")
+		    c.l = stod(tokens[1]);
+		else if (tokens[0] == "right")
+		    c.r = stod(tokens[1]);
+		else if (tokens[0] == "top")
+		    c.t = stod(tokens[1]);
+		else if (tokens[0] == "bottom")
+		    c.b = stod(tokens[1]);
+	    }
+	    else {
+		cout << "Bad line '" << line << "' in camera directives"<<\
+		    ", skipping." << endl;
+	    }
+	}
+    }
+    else {
+	cout << "Expected camera directive; instead got '" <<
+	    line << "', exiting.";
+	exit(1);
+    }
+    return c;
 }
-

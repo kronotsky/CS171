@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <map>
 #include <Eigen/Dense>
 
 using namespace std;
@@ -8,7 +9,7 @@ using namespace std;
 #define __VERTEX__
 
 struct Vertex {
-    float x, y, z;
+    double x, y, z;
 };
 
 #endif
@@ -17,7 +18,8 @@ struct Vertex {
 #define __FACE__
 
 struct Face {
-    int a, b, c;
+    int va, vb, vc;
+    int na, nb, nc;
 };
 
 #endif
@@ -26,17 +28,32 @@ struct Face {
 #ifndef __OBJECT__
 #define __OBJECT__
 
+struct Color {
+    double r, g, b;
+    Color() : r(0), g(0), b(0) { };
+    Color(int ri, int gi, int bi) : r(ri), g(gi), b(bi) { };
+    Color(const Color &in) : r(in.r), g(in.g), b(in.b) { };
+};
+
 struct Object {
     vector<Eigen::Vector4d> vertices;
     vector<Eigen::Vector4d> normals;
     vector<Face> faces;
+    Color amb;
+    Color diff;
+    Color spec;
+    double shiny;
     
     Object() { };
-    Object(vector<Eigen::Vector4d> vs, vector<Eigen::4d> ns, vector<Face> fs)\
+    Object(vector<Eigen::Vector4d> vs, vector<Eigen::Vector4d> ns, vector<Face> fs) \
 	: vertices(vs), faces(fs), normals(ns) { };
     Object(const Object &source) : vertices(source.vertices), \
                                    faces(source.faces), \
-				   normals(source.normals) { };
+				   normals(source.normals), \
+				   amb(source.amb), \
+				   diff(source.diff), \
+				   spec(source.spec), \
+				   shiny(source.shiny) { };
     
     Object transformed(Eigen::Matrix4d trans) const {
 	Object ret(*this);
@@ -92,24 +109,6 @@ struct Object {
 
 #endif
 
-struct Pixel {
-    int x, y;
-    Pixel() : x(0), y(0) { };
-    Pixel(int xi, int yi) : x(xi), y(yi) { };
-};
-
-struct Color {
-    float r, g, b;
-    Color() : r(0), g(0), b(0) { };
-    Color(int ri, int gi, int bi) : r(ri), g(gi), b(bi) { };
-
-    Color & flatten() {
-	r = (r > 1) ? 1 : r;
-	g = (g > 1) ? 1 : g;
-	b = (b > 1) ? 1 : b;	
-    }
-}
-
 struct Grid {
     int xres, yres;
     int *r, *g, *b;
@@ -147,22 +146,49 @@ struct Grid {
     }
 
     Color get(int x, int y) const {
-	return Color((float)(r[x + y * res]) / 255.0 \
-		     (float)(g[x + y * res]) / 255.0 \
-		     (float)(b[x + y * res]) / 255.0)
+	return Color((double)(r[x + y * xres]) / 255.0, \
+		     (double)(g[x + y * xres]) / 255.0, \
+		     (double)(b[x + y * xres]) / 255.0);
 		     
     }
 };
 
+struct Light {
+    double x, y, z, k;
+    Color col;
+};
+
+struct Camera {
+    Eigen::Matrix4d ori, pos;
+    double n, r, l, t, b, f;
+
+    Eigen::Matrix4d camera() {
+	return (ori * pos).inverse();
+    }
+
+    Eigen::Matrix4d perspective() {
+	Eigen::Matrix4d persp;
+	persp << (2 * n) / (r - l), 0, (r + l)/(r-l), 0,
+	      0, (2 * n) / (t - b), (t + b) / (t - b), 0,
+	      0, 0, - (f + n) / (f - n), (-2 * f * n)/(f - n),
+	      0, 0, -1, 0;
+	return persp;
+    }
+};
+
+    
 
 
 // Function prototypes, to go into routines.cpp:
 Eigen::Matrix4d translation(double tx, double ty, double tz);
 Eigen::Matrix4d scaling(double sx, double sy, double sz);
 Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi);
-Eigen::Matrix4d perspective(double n, double r, double l, double t, \
-			    double b, double f);
+Eigen::Matrix4d parse_transformations(ifstream &trfile);
 vector<string> split(string line, char delim = ' ');
+vector<Light> parse_lights(ifstream &scfile);
+map<string, Object> parse_object_names(ifstream &scfile);
+Camera parse_camera(ifstream &scfile);
 Object parse_obj(ifstream &objfile);
 Object transform(Object &obj, const Eigen::Matrix4d &trans);
+
 

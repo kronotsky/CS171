@@ -38,6 +38,47 @@ vector<string> split(string line, char delim) {
     return ret;
 }
 
+//**************************************************
+// Transformation  matrices w/ standard parameters:
+//**************************************************
+
+
+Eigen::Matrix4d translation(double tx, double ty, double tz) {
+    Eigen::Matrix4d t;
+    t << 1, 0, 0, tx,
+	 0, 1, 0, ty,
+         0, 0, 1, tz,
+	 0, 0, 0, 1;
+    return t;
+}
+
+Eigen::Matrix4d scaling(double sx, double sy, double sz) {
+    Eigen::Matrix4d s;
+    s << sx, 0, 0, 0,
+	 0, sy, 0, 0,
+	 0, 0, sz, 0,
+         0, 0, 0, 1;
+    return s;
+}
+
+Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi) {
+    // Using Rodrigues' formula. The cross product matrix is r:
+    Eigen::Matrix4d r;
+
+    // So that r * v is the cross product (rx, ry, rz) x v
+    // The matrix is 3d, but this is a 4d subspace embedding:
+    r << 0, -rz, ry, 0,
+	rz, 0, -rx, 0,
+	-ry, rx, 0, 0,
+	0, 0, 0, 0;
+
+    // The formula is R = I + r * sin(phi) + r^2 (1 - cos(phi)):
+    return Eigen::MatrixXd::Identity(4,4) + r * sin(phi) + (r * r) * (1 - cos(phi));
+}
+
+//**************************************************
+// SUB-PARSERS
+//**************************************************
 
 Eigen::Matrix4d parse_transformations(ifstream &trfile) {
     vector<string> tokens;
@@ -166,44 +207,58 @@ map<string, Object> parse_object_names(ifstream &scfile) {
     return objmap;
 }
 
+vector<Object> parse_object_spec(ifstream &scfile, \
+				 map<string, Object> objmap) {
+    vector<string> tokens;
+    vector<Object> objects;
+    string line;
+    
+    while (getline(scfile, line)) {
+    	tokens = split(line);
 
-//**************************************************
-// Transformation  matrices w/ standard parameters:
-//**************************************************
+    	// Looking for an object name:
+    	if (tokens.size() != 1) {
+    	    cout << "Bad syntax line: '" << line << "'" << endl;
+    	    continue;
+    	}
+    	else if (objmap.find(line) == objmap.end()) {
+    	    cout << "Object '" << line << "' not found" << endl;
+    	    continue;
+    	}
 
+    	string objname = line;
+    	Object cobj = objmap[objname];
 
-Eigen::Matrix4d translation(double tx, double ty, double tz) {
-    Eigen::Matrix4d t;
-    t << 1, 0, 0, tx,
-	 0, 1, 0, ty,
-         0, 0, 1, tz,
-	 0, 0, 0, 1;
-    return t;
+    	for (int i = 0; i < 4; i++) {
+    	    if (getline(scfile, line) && !line.empty()) {
+    		tokens = split(line);
+    		if ((tokens[0] == "ambient") && (tokens.size() == 4))
+    		    cobj.amb = Color(stod(tokens[1]), stod(tokens[2]), \
+				     stod(tokens[3]));
+		else if ((tokens[0] == "diffuse") && (tokens.size() == 4))
+		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
+				     stod(tokens[3]));
+		else if ((tokens[0] == "specular") && (tokens.size() == 4))
+		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
+				     stod(tokens[3]));
+		else if ((tokens[0] == "shininess") && (tokens.size() == 2))
+		    cobj.shiny = stod(tokens[1]);
+		else
+		    cout << "Bad line '" << line << "', looking for material" <<
+			" property." << endl;
+		
+    	    }
+    	}
+	
+    	// Apply the object's transformations:
+    	cobj *= parse_transformations(scfile);
+
+	// Add to the list:
+    	objects.push_back(cobj);	
+    }
+    return objects;
 }
 
-Eigen::Matrix4d scaling(double sx, double sy, double sz) {
-    Eigen::Matrix4d s;
-    s << sx, 0, 0, 0,
-	 0, sy, 0, 0,
-	 0, 0, sz, 0,
-         0, 0, 0, 1;
-    return s;
-}
-
-Eigen::Matrix4d rotation(double rx, double ry, double rz, double phi) {
-    // Using Rodrigues' formula. The cross product matrix is r:
-    Eigen::Matrix4d r;
-
-    // So that r * v is the cross product (rx, ry, rz) x v
-    // The matrix is 3d, but this is a 4d subspace embedding:
-    r << 0, -rz, ry, 0,
-	rz, 0, -rx, 0,
-	-ry, rx, 0, 0,
-	0, 0, 0, 0;
-
-    // The formula is R = I + r * sin(phi) + r^2 (1 - cos(phi)):
-    return Eigen::MatrixXd::Identity(4,4) + r * sin(phi) + (r * r) * (1 - cos(phi));
-}
 
 Camera parse_camera(ifstream &scfile) {
     vector<string> tokens;

@@ -11,7 +11,8 @@ vector<string> split(string line, char delim) {
     vector<string> ret;
 
     // Transition into C:
-    char *str;
+    char *str = new char[line.size() + 1];
+    char *todel = str;
     strcpy(str, line.c_str());
 
     do {
@@ -30,7 +31,8 @@ vector<string> split(string line, char delim) {
     // the while condition puts str at the point past the null terminator/
     // delimiter; in the former case *str++ evals to the null terminator so
     // the loop ends.
-    
+
+    delete[] todel;
     return ret;
 }
 

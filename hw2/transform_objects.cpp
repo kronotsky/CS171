@@ -87,52 +87,7 @@ int main(int argc, char *argv[]) {
     objmap = parse_object_names(scfile);
 
     // Find object copies and transformations: 
-    while (getline(scfile, line)) {
-    	tokens = split(line);
-
-    	// Looking for an object name:
-    	if (tokens.size() != 1) {
-    	    cout << "Bad syntax line: '" << line << "'" << endl;
-    	    continue;
-    	}
-    	else if (objmap.find(line) == objmap.end()) {
-    	    cout << "Object '" << line << "' not found" << endl;
-    	    continue;
-    	}
-
-    	string objname = line;
-    	Object cobj = objmap[objname];
-
-    	for (int i = 0; i < 4; i++) {
-    	    if (getline(scfile, line) && !line.empty()) {
-    		tokens = split(line);
-    		if ((tokens[0] == "ambient") && (tokens.size() == 4))
-    		    cobj.amb = Color(stod(tokens[1]), stod(tokens[2]), \
-				     stod(tokens[3]));
-		else if ((tokens[0] == "diffuse") && (tokens.size() == 4))
-		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
-				     stod(tokens[3]));
-		else if ((tokens[0] == "specular") && (tokens.size() == 4))
-		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
-				     stod(tokens[3]));
-		else if ((tokens[0] == "shininess") && (tokens.size() == 2))
-		    cobj.shiny = stod(tokens[1]);
-		else
-		    cout << "Bad line '" << line << "', looking for material" <<
-			" property." << endl;
-		
-    	    }
-    	}
-	
-    	// Apply the object's transformations:
-    	cobj *= parse_transformations(scfile);
-    	// Apply camera transformation then perspective transformation:
-    	cobj *= (cam.perspective() * cam.camera());
-	
-    	torender.push_back(cobj);	
-    	// cout << objname << endl;
-    	// trans.print();
-    } 
+    torender = parse_object_spec(scfile, objmap);
 }
 
 

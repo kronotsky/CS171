@@ -187,8 +187,19 @@ Eigen::Matrix4d parse_transformations(ifstream &trfile);
 vector<string> split(string line, char delim = ' ');
 vector<Light> parse_lights(ifstream &scfile);
 map<string, Object> parse_object_names(ifstream &scfile);
+vector<Object> parse_object_spec(ifstream &scfile, \
+				 map<string, Object> objname);
 Camera parse_camera(ifstream &scfile);
 Object parse_obj(ifstream &objfile);
-Object transform(Object &obj, const Eigen::Matrix4d &trans);
+
+// Parsing order:
+
+// parse_camera
+// parse_lights
+// parse_object_names
+//   |-- parse_obj
+// parse_object_spec
+//   |-- parse_transformations
+
 
 

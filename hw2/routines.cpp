@@ -228,18 +228,17 @@ vector<Object> parse_object_spec(ifstream &scfile, \
 
     	string objname = line;
     	Object cobj = objmap[objname];
-
     	for (int i = 0; i < 4; i++) {
     	    if (getline(scfile, line) && !line.empty()) {
     		tokens = split(line);
-    		if ((tokens[0] == "ambient") && (tokens.size() == 4))
-    		    cobj.amb = Color(stod(tokens[1]), stod(tokens[2]), \
+    		if ((tokens[0] == "ambient") && (tokens.size() == 4)) 
+    		    cobj.amb = Color(stod(tokens[1]), stod(tokens[2]),	\
 				     stod(tokens[3]));
 		else if ((tokens[0] == "diffuse") && (tokens.size() == 4))
 		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
 				     stod(tokens[3]));
 		else if ((tokens[0] == "specular") && (tokens.size() == 4))
-		    cobj.diff = Color(stod(tokens[1]), stod(tokens[2]), \
+		    cobj.spec = Color(stod(tokens[1]), stod(tokens[2]), \
 				     stod(tokens[3]));
 		else if ((tokens[0] == "shininess") && (tokens.size() == 2))
 		    cobj.shiny = stod(tokens[1]);
@@ -259,7 +258,6 @@ vector<Object> parse_object_spec(ifstream &scfile, \
     return objects;
 }
 
-
 Camera parse_camera(ifstream &scfile) {
     vector<string> tokens;
     string line;
@@ -268,8 +266,11 @@ Camera parse_camera(ifstream &scfile) {
 	while (getline(scfile, line) && !line.empty()) {
 	    tokens = split(line);
 	    if (tokens[0] == "position" && tokens.size() == 4) {
-		c.pos = translation(stod(tokens[1]), stod(tokens[2]), \
-				  stod(tokens[3]));
+		c.x = stod(tokens[1]);
+		c.y = stod(tokens[2]);
+		c.z = stod(tokens[3]);
+		c.pos = translation(c.x, c.y, c.z);
+
 	    }
 	    else if (tokens[0] == "orientation" && tokens.size() == 5) {
 		c.ori = rotation(stod(tokens[1]), stod(tokens[2]), \

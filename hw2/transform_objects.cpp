@@ -3,6 +3,9 @@
 #include <string>
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
+
+const double P = 1;
 
 // void render(Object obj, Grid &im) {
 //     vector<Pixel> pixels;
@@ -46,6 +49,42 @@
 //     }
 // }
 
+Color lighting(Object &o, Eigen::Vector4d &p, Eigen::Vector4d &n, Camera &c, \
+	       vector<Light> lights) {
+    double dot;
+    Eigen::Vector3d ld;
+    // Final colors:
+    double rf, gf, bf;
+    Color dsum(0, 0, 0);
+    Color ssum(0, 0, 0);
+    Color ret;
+
+    // Get e - P
+    Eigen::Vector3d ed;
+    ed << c.x - p(0), c.y - p(1), c.z - p(2);
+    ed.normalize();
+
+    for (const auto &l : lights) {
+	ld << l.x - p(0), l.y - p(1), l.z - p(2);
+	ld.normalize();
+
+	dot = max(0, ed.dot(ld));
+
+	dsum.r += l.col.r * dot;
+	dsum.g += l.col.g * dot;
+	dsum.b += l.col.b * dot;
+
+	dot = max(0, n.dot((ed + ld).normalized()));
+
+	dsum.r += l.col.r * dot;
+	dsum.g += l.col.g * dot;
+	dsum.b += l.col.b * dot;
+    }
+
+    ret.r = min(1, obj.amb.r + dsum.r * obj.diff.r + ssum.r * obj.spec.r);
+    ret.g = min(1, obj.amb.g + dsum.g * obj.diff.g + ssum.g * obj.spec.g);
+    ret.r = min(1, obj.amb.b + dsum.b * obj.diff.b + ssum.b * obj.spec.b);   
+}
 
 int main(int argc, char *argv[]) {
     ifstream scfile;
@@ -73,9 +112,6 @@ int main(int argc, char *argv[]) {
     // Get camera transformations:
     cam = parse_camera(scfile);
 
-    cout << cam.camera() << endl;
-    cout << cam.perspective() << endl;
-
     // // Get transformations:
     // persp = perspective(n, r, l, t, b, f);
     // camera = (ori * pos).inverse();
@@ -89,8 +125,3 @@ int main(int argc, char *argv[]) {
     // Find object copies and transformations: 
     torender = parse_object_spec(scfile, objmap);
 }
-
-
-// TO DO: Pretty sure rasterize and grid_to_ppm are 100% functional. Therefore, need
-// to debug render.
-

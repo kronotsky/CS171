@@ -31,7 +31,7 @@ struct Face {
 struct Color {
     double r, g, b;
     Color() : r(0), g(0), b(0) { };
-    Color(int ri, int gi, int bi) : r(ri), g(gi), b(bi) { };
+    Color(double ri, double gi, double bi) : r(ri), g(gi), b(bi) { };
     Color(const Color &in) : r(in.r), g(in.g), b(in.b) { };
 };
 
@@ -72,7 +72,7 @@ struct Object {
 	// to interfere with the norm calculation.
 	for (auto &n : normals) {
 	    n = (trans.inverse().transpose()) * n;
-	    n = n / n.norm();
+	    n.normalize();
 	}
 	return *this;
     }
@@ -111,20 +111,20 @@ struct Object {
 
 struct Grid {
     int xres, yres;
-    int *r, *g, *b;
+    double *r, *g, *b;
     
     Grid(int xr, int yr) : xres(xr), yres(yr) {
-	r = new int[xr * yr];
-	g = new int[xr * yr];
-	b = new int[xr * yr];
+	r = new double[xr * yr];
+	g = new double[xr * yr];
+	b = new double[xr * yr];
 	for (int i = 0; i < xr * yr; i++)
-	    *r = *g = *b = 0;
+	    r[i] = g[i] = b[i] = 0;
     }
     
     Grid(Grid &old) : xres(old.xres), yres(old.yres) {
-	r = new int[xres * yres];
-	g = new int[xres * yres];
-	b = new int[xres * yres];
+	r = new double[xres * yres];
+	g = new double[xres * yres];
+	b = new double[xres * yres];
 	for (int i = 0; i < xres * yres; i++) {
 	    r[i] = old.r[i];
 	    g[i] = old.g[i];
@@ -137,19 +137,15 @@ struct Grid {
 	delete[] g;
 	delete[] b;
     }
-    
 
     void fill(int x, int y, Color col) {
-	r[x + y * xres] = (int)(255 * col.r);
-	g[x + y * xres] = (int)(255 * col.g);
-	b[x + y * xres] = (int)(255 * col.b);	
+	r[x + y * xres] = col.r;
+	g[x + y * xres] = col.g;
+	b[x + y * xres] = col.b;
     }
 
     Color get(int x, int y) const {
-	return Color((double)(r[x + y * xres]) / 255.0, \
-		     (double)(g[x + y * xres]) / 255.0, \
-		     (double)(b[x + y * xres]) / 255.0);
-		     
+	return Color(r[x + y * xres], g[x + y * xres], b[x + y * xres]);
     }
 };
 
@@ -160,7 +156,7 @@ struct Light {
 
 struct Camera {
     Eigen::Matrix4d ori, pos;
-    double n, r, l, t, b, f;
+    double n, r, l, t, b, f, x, y, z;
 
     Eigen::Matrix4d camera() {
 	return (ori * pos).inverse();
@@ -173,6 +169,26 @@ struct Camera {
 	      0, 0, - (f + n) / (f - n), (-2 * f * n)/(f - n),
 	      0, 0, -1, 0;
 	return persp;
+    }
+};
+
+struct Buffer {
+    int xres, yres;
+    double *depth;
+
+    Buffer(int xr, int yr) : xres(xr), yres(yr) {
+	depth = new double[xr * yr];
+	for (int i = 0; i < xr * yr; i++) {
+	    depth[i] = 1000;
+	}
+    }
+
+    double get(int x, int y) const {
+	return depth[x + y * xres];
+    }
+
+    void set(int x, int y, double d) {
+	depth[x + y * xres] = d;
     }
 };
 

@@ -6,36 +6,6 @@
 #include <algorithm>
 #include <cmath>
 
-// void render(Object obj, Grid &im) {
-//     vector<Pixel> pixels;
-//     vector<Face> faces = obj.faces;
-//     vector<Vertex> vertices = obj.cartesian_vertices();
-//     bool *exclude = new bool[vertices.size()];
-//     int x, y, i, a, b, c;
-    
-//     for (i = 0; i < vertices.size(); i++) {
-// 	x = (int)((vertices[i].x + 1) * (float)((im.xres - 1) >> 1));
-// 	y = im.yres - (int)((vertices[i].y + 1) * (float)((im.yres - 1) >> 1));
-// 	pixels.push_back(Pixel(x, y));
-
-// 	if ((0 <= x) && (x < im.xres) && (0 <= y) && (y < im.yres))
-// 	    exclude[i] = 0;
-// 	else 
-// 	    exclude[i] = 1;
-//     }
-//     for (const auto &f : faces) {
-// 	a = f.a - 1;
-// 	b = f.b - 1;
-// 	c = f.c - 1;
-// 	if (exclude[a] || exclude[b] || exclude[c])
-// 	    continue;
-// 	rasterize(pixels[a], pixels[b], im);
-// 	rasterize(pixels[b], pixels[c], im);
-// 	rasterize(pixels[c], pixels[a], im);
-//     }
-//     delete[] exclude;
-// }
-
 void grid_to_ppm(Grid &im) {
     Color col;
     int i, j, k;
@@ -206,7 +176,8 @@ int main(int argc, char *argv[]) {
 
     // Find object copies and transformations: 
     torender = parse_object_spec(scfile, objmap);
-    for (auto &face : torender[0].faces) 
-	raster(torender[0], face, lights, cam, gr, buf);
+    for (auto &obj : torender)
+	for (auto &face : obj.faces) 
+	    raster(obj, face, lights, cam, gr, buf);
     grid_to_ppm(gr);
 }

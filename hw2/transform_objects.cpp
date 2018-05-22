@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <cmath>
 
 const double P = 1;
 
@@ -51,10 +52,9 @@ const double P = 1;
 
 Color lighting(Object &o, Eigen::Vector4d &p, Eigen::Vector4d &n, Camera &c, \
 	       vector<Light> lights) {
-    double dot;
+    double dot, f;
     Eigen::Vector3d ld;
     // Final colors:
-    double rf, gf, bf;
     Color dsum(0, 0, 0);
     Color ssum(0, 0, 0);
     Color ret;
@@ -70,15 +70,19 @@ Color lighting(Object &o, Eigen::Vector4d &p, Eigen::Vector4d &n, Camera &c, \
 
 	dot = max(0, ed.dot(ld));
 
-	dsum.r += l.col.r * dot;
-	dsum.g += l.col.g * dot;
-	dsum.b += l.col.b * dot;
+	f = dot / (1 + k * dot * dot);
 
-	dot = max(0, n.dot((ed + ld).normalized()));
+	dsum.r += l.col.r * f;
+	dsum.g += l.col.g * f;
+	dsum.b += l.col.b * f;
 
-	dsum.r += l.col.r * dot;
-	dsum.g += l.col.g * dot;
-	dsum.b += l.col.b * dot;
+	dot = pow(max(0, n.dot((ed + ld).normalized())), P);
+
+	f = dot / (1 + k * dot * dot);
+
+	dsum.r += l.col.r * f;
+	dsum.g += l.col.g * f;
+	dsum.b += l.col.b * f;
     }
 
     ret.r = min(1, obj.amb.r + dsum.r * obj.diff.r + ssum.r * obj.spec.r);

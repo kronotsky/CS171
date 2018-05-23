@@ -9,6 +9,12 @@ private:
 	for (int i = 0; i < 4; i++)
 	    q[i] = rhs.q[i];
     }
+    double normsq() const {
+	double ret = 0;
+	for (int i = 0; i < 4; i++)
+	    ret += q[i] * q[i];
+	return ret;
+    }
     
 public:
     double q[4];
@@ -129,10 +135,7 @@ public:
     // **************************************************
 
     double norm() const {
-	double ret = 0;
-	for (int i = 0; i < 4; i++)
-	    ret += q[i] * q[i];
-	return sqrt(ret);
+	return sqrt(normsq());
     }
 
     const Quat conjugate() const {
@@ -143,9 +146,9 @@ public:
     }
 
     const Quat inverse() const {
-	Quat ret = this->conjugate();
-	double n = this->norm();
-	ret /= (n * n);
+	Quat ret = conjugate();
+	double n = normsq();
+	ret /= n;
 	return ret;
     }
 

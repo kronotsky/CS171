@@ -23,11 +23,11 @@ public:
     // Constructors and destructor:
     // **************************************************
 
-    Quat(double si = 0, double xi = 0, double yi = 0, double zi = 0) {
-	q[0] = si;
-	q[1] = xi;
-	q[2] = yi;
-	q[3] = zi;
+    Quat(double s = 0, double x = 0, double y = 0, double z = 0) {
+	q[0] = s;
+	q[1] = x;
+	q[2] = y;
+	q[3] = z;
     }
 
     Quat(const Quat &in) {

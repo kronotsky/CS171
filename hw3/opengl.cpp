@@ -1,75 +1,12 @@
-/* CS/CNS 171
- * Written by Kevin (Kevli) Li (Class of 2016)
- * Originally for Fall 2014
- *
- * This OpenGL demo code is supposed to introduce you to the OpenGL syntax and
- * to good coding practices when writing programs in OpenGL.
- *
- * The example syntax and code organization in this file should hopefully be
- * good references for you to write your own OpenGL code.
- *
- * The advantage of OpenGL is that it turns a lot of complicated procedures
- * (such as the lighting and shading computations in Assignment 2) into simple
- * calls to built-in library functions. OpenGL also provides an easy way to
- * make mouse and keyboard user interfaces, allowing you to make programs that
- * actually let you interact with the graphics instead of just generating
- * static images. OpenGL is in general a nice tool for when you want to make a
- * quick-and-dirty graphics program.
- *
- * Keep in mind that this demo code uses OpenGL 3.0. 3.0 is not the newest
- * version of OpenGL, but it is stable; and it contains all the necessary
- * functionality for this class. Most of the syntax in 3.0 carries over to
- * the newer versions, so you should still be able to use more modern OpenGL
- * without too much difficulty after this class. The main difference between
- * 3.0 and the newer versions is that 3.0 depends on glut, which has been
- * deprecated on Mac OS.
- *
- * This demo does not cover the OpenGL Shading Language (GLSL for short).
- * GLSL will be covered in a future demo and assignment.
- *
- * Note that if you are looking at this code before having completed
- * Assignments 1 and 2, then you will probably have a hard time understanding
- * a lot of what is going on.
- *
- * The overall idea of what this program does is given on the
- * "System Recommendations and Installation Instructions" page of the class
- * website.
- */
- 
-
-/* The following 2 headers contain all the main functions, data structures, and
- * variables that allow for OpenGL development.
- */
 #include <GL/glew.h>
 #include <GL/glut.h>
-
-/* You will almost always want to include the math library. For those that do
- * not know, the '_USE_MATH_DEFINES' line allows you to use the syntax 'M_PI'
- * to represent pi to double precision in C++. OpenGL works in degrees for
- * angles, so converting between degrees and radians is a common task when
- * working in OpenGL.
- *
- * Besides the use of 'M_PI', the trigometric functions also show up a lot in
- * graphics computations.
- */
 #include <math.h>
 #define _USE_MATH_DEFINES
 
-/* iostream and vector are standard libraries that are just generally useful.
- */
 #include <iostream>
 #include <vector>
 
 using namespace std;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* The following are function prototypes for the functions that you will most
- * often write when working in OpenGL.
- *
- * Details on the functions will be given in their respective implementations
- * further below.
- */
 
 void init(void);
 void reshape(int width, int height);
@@ -83,24 +20,7 @@ void mouse_pressed(int button, int state, int x, int y);
 void mouse_moved(int x, int y);
 void key_pressed(unsigned char key, int x, int y);
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* The following structs do not involve OpenGL, but they are useful ways to
- * store information needed for rendering,
- *
- * After Assignment 2, the 3D shaded surface renderer assignment, you should
- * have a fairly intuitive understanding of what these structs represent.
- */
-
-
-/* The following struct is used for representing a point light.
- *
- * Note that the position is represented in homogeneous coordinates rather than
- * the simple Cartesian coordinates that we would normally use. This is because
- * OpenGL requires us to specify a w-coordinate when we specify the positions
- * of our point lights. We specify the positions in the 'set_lights' function.
- */
-struct Point_Light
+struct Light
 {
     /* Index 0 has the x-coordinate
      * Index 1 has the y-coordinate
@@ -121,33 +41,14 @@ struct Point_Light
     float attenuation_k;
 };
 
-/* The following struct is used for representing points and normals in world
- * coordinates.
- *
- * Notice how we are using this struct to represent points, but the struct
- * lacks a w-coordinate. Fortunately, OpenGL will handle all the complications
- * with the homogeneous component for us when we have it process the points.
- * We do not actually need to keep track of the w-coordinates of our points
- * when working in OpenGL.
- */
 struct Triple
 {
     float x;
     float y;
     float z;
+    Triple(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
 };
 
-/* The following struct is used for storing a set of transformations.
- * Please note that this structure assumes that our scenes will give
- * sets of transformations in the form of transltion -> rotation -> scaling.
- * Obviously this will not be the case for your scenes. Keep this in
- * mind when writing your own programs.
- *
- * Note that we do not need to use matrices this time to represent the
- * transformations. This is because OpenGL will handle all the matrix
- * operations for us when we have it apply the transformations. All we
- * need to do is supply the parameters.
- */
 struct Transforms
 {
     /* For each array below,
@@ -164,40 +65,6 @@ struct Transforms
     float rotation_angle;
 };
 
-/* The following struct is used to represent objects.
- *
- * The main things to note here are the 'vertex_buffer' and 'normal_buffer'
- * vectors.
- *
- * You will see later in the 'draw_objects' function that OpenGL requires
- * us to supply it all the faces that make up an object in one giant
- * "vertex array" before it can render the object. The faces are each specified
- * by the set of vertices that make up the face, and the giant "vertex array"
- * stores all these sets of vertices consecutively. Our "vertex_buffer" vector
- * below will be our "vertex array" for the object.
- *
- * As an example, let's say that we have a cube object. A cube has 6 faces,
- * each with 4 vertices. Each face is going to be represented by the 4 vertices
- * that make it up. We are going to put each of these 4-vertex-sets one by one
- * into 1 large array. This gives us an array of 36 vertices. e.g.:
- *
- * [face1vertex1, face1vertex2, face1vertex3, face1vertex4,
- *  face2vertex1, face2vertex2, face2vertex3, face2vertex4,
- *  face3vertex1, face3vertex2, face3vertex3, face3vertex4,
- *  face4vertex1, face4vertex2, face4vertex3, face4vertex4,
- *  face5vertex1, face5vertex2, face5vertex3, face5vertex4,
- *  face6vertex1, face6vertex2, face6vertex3, face6vertex4]
- *
- * This array of 36 vertices becomes our 'vertex_array'.
- *
- * While it may be obvious to us that some of the vertices in the array are
- * repeats, OpenGL has no way of knowing this. The redundancy is necessary
- * since OpenGL needs the vertices of every face to be explicitly given.
- *
- * The 'normal_buffer' stores all the normals corresponding to the vertices
- * in the 'vertex_buffer'. With the cube example, since the "vertex array"
- * has "36" vertices, the "normal array" also has "36" normals.
- */
 struct Object
 {
     /* See the note above and the comments in the 'draw_objects' and
@@ -206,7 +73,7 @@ struct Object
     vector<Triple> vertex_buffer;
     vector<Triple> normal_buffer;
     
-    vector<Transforms> transform_sets;
+    vector<string> transforms;
     
     /* Index 0 has the r-component
      * Index 1 has the g-component
@@ -219,16 +86,6 @@ struct Object
     float shininess;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* The following are the typical camera specifications and parameters. In
- * general, it is a better idea to keep all this information in a camera
- * struct, like how we have been doing it in Assignemtns 1 and 2. However,
- * if you only have one camera for the scene, and all your code is in one
- * file (like this one), then it is sometimes more convenient to just have
- * all the camera specifications and parameters as global variables.
- */
- 
 /* Index 0 has the x-coordinate
  * Index 1 has the y-coordinate
  * Index 2 has the z-coordinate
@@ -243,22 +100,10 @@ float cam_orientation_angle = 0;
 float near_param = 1, far_param = 20,
       left_param = -0.5, right_param = 0.5,
       top_param = 0.5, bottom_param = -0.5;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Self-explanatory lists of lights and objects.
- */
  
-vector<Point_Light> lights;
+vector<Light> lights;
 vector<Object> objects;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* The following are parameters for creating an interactive first-person camera
- * view of the scene. The variables will make more sense when explained in
- * context, so you should just look at the 'mousePressed', 'mouseMoved', and
- * 'keyPressed' functions for the details.
- */
 
 int mouse_x, mouse_y;
 float mouse_scale_x, mouse_scale_y;
@@ -270,97 +115,27 @@ float x_view_angle = 0, y_view_angle = 0;
 bool is_pressed = false;
 bool wireframe_mode = false;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* The following function prototypes are for helper functions that we made to
- * initialize some point lights and cube objects.
- *
- * Details of the functions will be given in their respective implementations
- * further below.
- */
 
 void create_lights();
 void create_cubes();
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* From here on are all the function implementations.
- */
  
 
-/* 'init' function:
- * 
- * As you would expect, the 'init' function initializes and sets up the
- * program. It should always be called before anything else.
- *
- * Writing an 'init' function is not required by OpenGL. If you wanted to, you
- * could just put all your initializations in the beginning of the 'main'
- * function instead. However, doing so is bad style; it is cleaner to have all
- * your initializations contained within one function.
- * 
- * Before we go into the function itself, it is important to mention that
- * OpenGL works like a state machine. It will do different procedures depending
- * on what state it is in.
- *
- * For instance, OpenGL has different states for its shading procedure. By
- * default, OpenGL is in "flat shading state", meaning it will always use flat
- * shading when we tell it to render anything. With some syntax, we can change
- * the shading procedure from the "flat shading state" to the "Gouraud shading
- * state", and then OpenGL will render everything using Gouraud shading.
- *
- * The most important task of the 'init' function is to set OpenGL to the
- * states that we want it to be in.
- */
 void init(void)
 {
-    /* The following line of code tells OpenGL to use "smooth shading" (aka
-     * Gouraud shading) when rendering.
-     *
-     * Yes. This is actually all you need to do to use Gouraud shading in
-     * OpenGL (besides providing OpenGL the vertices and normals to render).
-     * Short and sweet, right?
-     *
-     * If you wanted to tell OpenGL to use flat shading at any point, then you
-     * would use the following line:
-     
-       glShadeModel(GL_FLAT);
-     
-     * Phong shading unfortunately requires GLSL, so it will be covered in a
-     * later demo.
-     */
+    // GOURAUD SHADING:
     glShadeModel(GL_SMOOTH);
     
-    /* The next line of code tells OpenGL to use "culling" when rendering. The
-     * line right after it tells OpenGL that the particular "culling" technique
-     * we want it to use is backface culling.
-     *
-     * "Culling" is actually a generic term for various algorithms that
-     * prevent the rendering process from trying to render unnecessary
-     * polygons. Backface culling is the most commonly used method, but
-     * there also exist other, niche methods like frontface culling.
-     */
+    // CULL:
     glEnable(GL_CULL_FACE);
+    // W/ BACKFACE:
     glCullFace(GL_BACK);
     
-    /* The following line tells OpenGL to use depth buffering when rendering.
-     */
+    // DEPTH BUFFERING:
     glEnable(GL_DEPTH_TEST);
-    
-     /* The following line tells OpenGL to automatically normalize our normal
-     * vectors before it passes them into the normal arrays discussed below.
-     * This is required for correct lighting, but it also slows down our
-     * program. An alternative to this is to manually scale the normal vectors
-     * to correct for each scale operation we call. For instance, if we were
-     * to scale an object by 3 (via glScalef() discussed below), then
-     * OpenGL would scale the normals of the object by 1/3, as we would
-     * expect from the inverse normal transform. But since we need unit
-     * normals for lighting, we would either need to enable GL_NORMALIZE
-     * or manually scale our normals by 3 before passing them into the
-     * normal arrays; this is of course to counteract the 1/3 inverse
-     * scaling when OpenGL applies the normal transforms. Enabling GL_NORMALIZE
-     * is more convenient, but we sometimes don't use it if it slows down
-     * our program too much.
-     */
+
+    // Normalize normals:
     glEnable(GL_NORMALIZE);
     
     /* The following two lines tell OpenGL to enable its "vertex array" and
@@ -1216,7 +991,7 @@ void create_lights()
     // Light 1 Below
     ///////////////////////////////////////////////////////////////////////////////////////////////
     
-    Point_Light light1;
+    Light light1;
     
     light1.position[0] = -0.8;
     light1.position[1] = 0;
@@ -1234,7 +1009,7 @@ void create_lights()
     // Light 2 Below
     ///////////////////////////////////////////////////////////////////////////////////////////////
     
-    Point_Light light2;
+    Light light2;
     
     light2.position[0] = 0.15;
     light2.position[1] = 0.85;
@@ -1253,7 +1028,7 @@ void create_lights()
     // Light 3 Below
     ///////////////////////////////////////////////////////////////////////////////////////////////    
     
-    Point_Light light3;
+    Light light3;
     
     light3.position[0] = 0.5;
     light3.position[1] = -0.5;

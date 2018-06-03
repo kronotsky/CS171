@@ -100,6 +100,53 @@ float cam_orientation_angle = 0;
 float near_param = 1, far_param = 20,
       left_param = -0.5, right_param = 0.5,
       top_param = 0.5, bottom_param = -0.5;
+
+
+// Camera parser:
+void parse_camera(ifstream &scfile) {
+    vector<string> tokens;
+    string line;
+    if (getline(scfile, line) && line == "camera:") {
+	while (getline(scfile, line) && !line.empty()) {
+	    tokens = split(line);
+	    if (tokens[0] == "position" && tokens.size() == 4) {
+		cam_position[0] = stod(tokens[1]);
+		cam_position[1] = stod(tokens[2]);
+		cam_position[2] = stod(tokens[3]);
+	    }
+	    else if (tokens[0] == "orientation" && tokens.size() == 5) {
+		cam_orientation_axis[0] = stod(tokens[1]);
+		cam_orientation_axis[1] = stod(tokens[2]);
+		cam_orientation_axis[2] = stod(tokens[3]);
+		cam_orientation_angle = stod(tokens[4]);
+	    }
+	    else if (tokens.size() == 2) {
+		if (tokens[0] == "near")
+		    near_param = stod(tokens[1]);
+		else if (tokens[0] == "far")
+		    far_param = stod(tokens[1]);
+		else if (tokens[0] == "left")
+		    left_param = stod(tokens[1]);
+		else if (tokens[0] == "right")
+		    right_param = stod(tokens[1]);
+		else if (tokens[0] == "top")
+		    top_param = stod(tokens[1]);
+		else if (tokens[0] == "bottom")
+		    bottom_param = stod(tokens[1]);
+	    }
+	    else {
+		cout << "Bad line '" << line << "' in camera directives"<<\
+		    ", skipping." << endl;
+	    }
+	}
+    }
+    else {
+	cout << "Expected camera directive; instead got '" <<
+	    line << "', exiting.";
+	exit(1);
+    }
+}
+
  
 vector<Light> lights;
 vector<Object> objects;

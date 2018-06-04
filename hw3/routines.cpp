@@ -1,9 +1,6 @@
 #include "structs.hh"
 #include <iostream>
-#include <fstream>
 #include <string.h>
-#include <string>
-
 
 // C split function (borrowed from stackexchange; not sure exactly where
 // just Google the code if you want to find it)
@@ -73,18 +70,18 @@ Object parse_obj(ifstream &objfile) {
 
 	// Add vertex in homogeneous coordinates:
 	if (tokens[0] == "v") 
-	    vertices.push_back(stod(tokens[1]), \
-					 stod(tokens[2]), stod(tokens[3]));
+	    vertices.push_back(Triple(stod(tokens[1]),\
+				      stod(tokens[2]), stod(tokens[3])));
     	else if (tokens[0] == "vn") 
-	    normals.push_back(stod(tokens[1]),\
-			      stod(tokens[2]), stod(tokens[3]));
+	    normals.push_back(Triple(stod(tokens[1]),\
+				     stod(tokens[2]), stod(tokens[3])));
 	// Add face:
 	else if (tokens[0] == "f") {
 	    vector<string> ft;
 	    for (i = 1; i < 4; i++) {
-		ft = split(tokens[i]);
+		ft = split(tokens[i], '/');
 		obj.vertex_buffer.push_back(vertices[stoi(ft[0]) - 1]);
-		obj.normal_buffer.push_back(vertices[stoi(ft[1]) - 1]);
+		obj.normal_buffer.push_back(normals[stoi(ft[1]) - 1]);
 	    }
 	}
 	else {
@@ -109,10 +106,10 @@ vector<Light> parse_lights(ifstream &scfile) {
 	toadd.position[0] = stof(tokens[1]);
 	toadd.position[1] = stof(tokens[2]);
 	toadd.position[2] = stof(tokens[3]);
-	toadd.psoition[3] = 1.0;
+	toadd.position[3] = 1.0;
 	toadd.color[0] = stof(tokens[5]);
 	toadd.color[1] = stod(tokens[6]);
-	toadd.color[2] = stod(tokens[7]));
+	toadd.color[2] = stod(tokens[7]);
 	toadd.attenuation_k = stod(tokens[9]);
 	ret.push_back(toadd);
     }

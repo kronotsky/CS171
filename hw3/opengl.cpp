@@ -1,10 +1,8 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
+#include "structs.hh"
 #include <math.h>
 #define _USE_MATH_DEFINES
-
-#include <iostream>
-#include <vector>
 
 using namespace std;
 
@@ -19,72 +17,6 @@ void draw_objects();
 void mouse_pressed(int button, int state, int x, int y);
 void mouse_moved(int x, int y);
 void key_pressed(unsigned char key, int x, int y);
-
-struct Light
-{
-    /* Index 0 has the x-coordinate
-     * Index 1 has the y-coordinate
-     * Index 2 has the z-coordinate
-     * Index 3 has the w-coordinate
-     */
-    float position[4];
-    
-    /* Index 0 has the r-component
-     * Index 1 has the g-component
-     * Index 2 has the b-component
-     */
-    float color[3];
-    
-    /* This is our 'k' factor for attenuation as discussed in the lecture notes
-     * and extra credit of Assignment 2.
-     */
-    float attenuation_k;
-};
-
-struct Triple
-{
-    float x;
-    float y;
-    float z;
-    Triple(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
-};
-
-struct Transforms
-{
-    /* For each array below,
-     * Index 0 has the x-component
-     * Index 1 has the y-component
-     * Index 2 has the z-component
-     */
-    float translation[3];
-    float rotation[3];
-    float scaling[3];
-    
-    /* Angle in degrees.
-     */
-    float rotation_angle;
-};
-
-struct Object
-{
-    /* See the note above and the comments in the 'draw_objects' and
-     * 'create_cubes' functions for details about these buffer vectors.
-     */
-    vector<Triple> vertex_buffer;
-    vector<Triple> normal_buffer;
-    
-    vector<string> transforms;
-    
-    /* Index 0 has the r-component
-     * Index 1 has the g-component
-     * Index 2 has the b-component
-     */
-    float ambient_reflect[3];
-    float diffuse_reflect[3];
-    float specular_reflect[3];
-    
-    float shininess;
-};
 
 /* Index 0 has the x-coordinate
  * Index 1 has the y-coordinate
@@ -253,8 +185,6 @@ void init(void)
      * The reason we have these procedures as separate functions is to make
      * the code more organized.
      */
-    create_cubes();
-    create_lights();
     
     /* The next line calls our function that tells OpenGL to initialize some
      * lights to represent our Point Light structs. Further details will be
@@ -628,7 +558,7 @@ void draw_objects()
         /* The following brace is not necessary, but it keeps things organized.
          */
         {
-            int num_transform_sets = objects[i].transform_sets.size();
+            int n = objects[i].transforms.size();
             
             /* The loop tells OpenGL to modify our modelview matrix with the
              * desired geometric transformations for this object. Remember
@@ -660,89 +590,25 @@ void draw_objects()
              * Keep all this in mind to come up with an appropriate way to store and apply
              * geometric transformations for each object in your scenes.
              */
-            for(int j = 0; j < num_transform_sets; ++j)
-            {
-                glTranslatef(objects[i].transform_sets[j].translation[0],
-                             objects[i].transform_sets[j].translation[1],
-                             objects[i].transform_sets[j].translation[2]);
-                glRotatef(objects[i].transform_sets[j].rotation_angle,
-                          objects[i].transform_sets[j].rotation[0],
-                          objects[i].transform_sets[j].rotation[1],
-                          objects[i].transform_sets[j].rotation[2]);
-                glScalef(objects[i].transform_sets[j].scaling[0],
-                         objects[i].transform_sets[j].scaling[1],
-                         objects[i].transform_sets[j].scaling[2]);
-            }
-            
-            /* The 'glMaterialfv' and 'glMaterialf' functions tell OpenGL
-             * the material properties of the surface we want to render.
-             * The parameters for 'glMaterialfv' are (in the following order):
-             *
-             * - enum face: Options are 'GL_FRONT' for front-face rendering,
-             *              'GL_BACK' for back-face rendering, and
-             *              'GL_FRONT_AND_BACK' for rendering both sides.
-             * - enum property: this varies on what you are setting up
-             *                  e.g. 'GL_AMBIENT' for ambient reflectance
-             * - float* values: a set of values for the specified property
-             *                  e.g. an array of RGB values for the reflectance
-             *
-             * The 'glMaterialf' function is the same, except the third
-             * parameter is only a single float value instead of an array of
-             * values. 'glMaterialf' is used to set the shininess property.
-             */
+	    vector<string> tokens;
+	    for(int j = 1; j <= n; j++) {
+		tokens = split(objects[i].transforms[n - j]);
+		if ((tokens.size() == 4) && (tokens[0] == "t")) 
+		    glTranslatef(stof(tokens[1]), stof(tokens[2]), 
+				 stod(tokens[3]));
+		else if ((tokens.size() == 4) && (tokens[0] == "s")) 
+		    glScalef(stof(tokens[1]), stof(tokens[2]),
+			     stof(tokens[3]));
+		else if ((tokens.size() == 5) && (tokens[0] == "r")) 
+		    glRotatef(stof(tokens[4]) * 180.0 / M_PI, stof(tokens[1]),
+			      stof(tokens[2]), stof(tokens[3]));
+	    }
+
             glMaterialfv(GL_FRONT, GL_AMBIENT, objects[i].ambient_reflect);
             glMaterialfv(GL_FRONT, GL_DIFFUSE, objects[i].diffuse_reflect);
             glMaterialfv(GL_FRONT, GL_SPECULAR, objects[i].specular_reflect);
             glMaterialf(GL_FRONT, GL_SHININESS, objects[i].shininess);
             
-            /* The next few lines of code are how we tell OpenGL to render
-             * geometry for us. First, let us look at the 'glVertexPointer'
-             * function.
-             * 
-             * 'glVertexPointer' tells OpenGL the specifications for our
-             * "vertex array". As a recap of the comments from the 'Object'
-             * struct, the "vertex array" stores all the faces of the surface
-             * we want to render. The faces are stored in the array as
-             * consecutive points. For instance, if our surface were a cube,
-             * then our "vertex array" could be the following:
-             *
-             * [face1vertex1, face1vertex2, face1vertex3, face1vertex4,
-             *  face2vertex1, face2vertex2, face2vertex3, face2vertex4,
-             *  face3vertex1, face3vertex2, face3vertex3, face3vertex4,
-             *  face4vertex1, face4vertex2, face4vertex3, face4vertex4,
-             *  face5vertex1, face5vertex2, face5vertex3, face5vertex4,
-             *  face6vertex1, face6vertex2, face6vertex3, face6vertex4]
-             * 
-             * Obviously to us, some of the vertices in the array are repeats.
-             * However, the repeats cannot be avoided since OpenGL requires
-             * this explicit specification of the faces.
-             *
-             * The parameters to the 'glVertexPointer' function are as
-             * follows:
-             *
-             * - int num_points_per_face: this is the parameter that tells
-             *                            OpenGL where the breaks between
-             *                            faces are in the vertex array.
-             *                            Below, we set this parameter to 3,
-             *                            which tells OpenGL to treat every
-             *                            set of 3 consecutive vertices in
-             *                            the vertex array as 1 face. So
-             *                            here, our vertex array is an array
-             *                            of triangle faces.
-             *                            If we were using the example vertex
-             *                            array above, we would have set this
-             *                            parameter to 4 instead of 3.
-             * - enum type_of_coordinates: this parameter tells OpenGL whether
-             *                             our vertex coordinates are ints,
-             *                             floats, doubles, etc. In our case,
-             *                             we are using floats, hence 'GL_FLOAT'.
-             * - sizei stride: this parameter specifies the number of bytes
-             *                 between consecutive vertices in the array.
-             *                 Most often, you will set this parameter to 0
-             *                 (i.e. no offset between consecutive vertices).
-             * - void* pointer_to_array: this parameter is the pointer to
-             *                           our vertex array.
-             */
             glVertexPointer(3, GL_FLOAT, 0, &objects[i].vertex_buffer[0]);
             /* The "normal array" is the equivalent array for normals.
              * Each normal in the normal array corresponds to the vertex
@@ -798,19 +664,6 @@ void draw_objects()
          */
         glPopMatrix();
     }
-    
-    
-    /* The following code segment uses OpenGL's built-in sphere rendering
-     * function to render the blue-ground that you are walking on when
-     * you run the program. The blue-ground is just the surface of a big
-     * sphere of radius 100.
-     */
-    glPushMatrix();
-    {
-        glTranslatef(0, -103, 0);
-        glutSolidSphere(100, 100, 100);
-    }
-    glPopMatrix();
 }
 
 /* 'mouse_pressed function:
@@ -1048,14 +901,16 @@ int main(int argc, char* argv[])
 	cout << "Filename " << argv[1] << " not found!" << endl;
 	return 1;
     }
+
     // Parsing functions:
     parse_camera(scfile);
-
+    
     lights = parse_lights(scfile);
+
     objmap = parse_object_names(scfile);
 
-    objects = parse_object_names(scfile);    
-    
+    objects = parse_object_spec(scfile, objmap);
+
     /* The following line of code tells OpenGL that we need a double buffer,
      * a RGB pixel buffer, and a depth buffer.
      */

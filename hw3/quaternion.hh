@@ -130,6 +130,12 @@ public:
 	return (*this * (1 / val));
     }
 
+    const Quat operator/(const Quat &rhs) const {
+	Quat ret(*this);
+	ret /= rhs;
+	return ret;
+    }
+
     // **************************************************
     // Access functions
     // **************************************************

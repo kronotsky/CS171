@@ -1,7 +1,9 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 #include "structs.hh"
+#include "quaternion.hh"
 #include <math.h>
+#include <Eigen/Dense>
 #define _USE_MATH_DEFINES
 
 using namespace std;
@@ -17,6 +19,10 @@ void draw_objects();
 void mouse_pressed(int button, int state, int x, int y);
 void mouse_moved(int x, int y);
 void key_pressed(unsigned char key, int x, int y);
+
+void set_current_rotation(Quat r);
+void set_current_rotation_transpose(Quat r);
+Quat compute_rotation(int pxc, int pyc, int pxs, int pys, int xres, int yres);
 
 /* Index 0 has the x-coordinate
  * Index 1 has the y-coordinate
@@ -36,7 +42,6 @@ float near_param = 1, far_param = 20,
 vector<Light> lights;
 vector<Object> objects;
 
-
 int mouse_x, mouse_y;
 float mouse_scale_x, mouse_scale_y;
 
@@ -44,10 +49,16 @@ const float step_size = 0.2;
 const float x_view_step = 90.0, y_view_step = 90.0;
 float x_view_angle = 0, y_view_angle = 0;
 
+Quat last_rot = 1.0;
+Quat cur_rot = 1.0;
+double mult_mat[16] = {0};
+
 bool is_pressed = false;
 bool wireframe_mode = false;
+bool arcball_mode = false;
 
-
+int xres;
+int yres;
 
 void create_lights();
 void create_cubes();
@@ -367,6 +378,10 @@ void display(void)
     glTranslatef(-cam_position[0], -cam_position[1], -cam_position[2]);
     /* ^ And that should be it for the camera transformations.
      */
+
+    // After setting up the screen and the camera, the next step is to post the redisplay:
+    set_current_rotation_transpose(cur_rot * last_rot);
+    glMultMatrixd(mult_mat);
     
     /* Our next step is to set up all the lights in their specified positions.
      * Our helper function, 'set_lights' does this for us. See the function
@@ -375,6 +390,7 @@ void display(void)
      * The reason we have this procedure as a separate function is to make
      * the code more organized.
      */
+
     set_lights();
     /* Once the lights are set, we can specify the points and faces that we
      * want drawn. We do all this in our 'draw_objects' helper function. See
@@ -666,6 +682,76 @@ void draw_objects()
     }
 }
 
+Quat compute_rotation(int pxc, int pyc, int pxs, int pys, int xres, int yres) {
+    Eigen::Vector3d p1, p2, c;
+    double p1x, p1y, p2x, p2y;
+    double theta;
+    p1x = (double)(pxs) / (double)(xres) - 1;
+    p2x = (double)(pxc) / (double)(xres) - 1;
+    p1y = (double)(pys) / (double)(yres) - 1;
+    p2y = (double)(pyc) / (double)(yres) - 1;
+
+    p1 << p1x, p1y, ((p1x * p1x + p1y * p1y) < 1) ? sqrt(1 - p1x * p1x - p1y * p1y) : 0;
+    p2 << p2x, p2y, ((p2x * p2x + p2y * p2y) < 1) ? sqrt(1 - p2x * p2x - p2y * p2y) : 0;
+
+    theta = p1.dot(p2) / (p1.norm() * p2.norm());
+    theta = acos(min(1.0, theta));
+    c = p1.cross(p2) * sin(theta / 2);
+    return Quat(cos(theta / 2), c(0), c(1), c(2));
+}
+
+void set_current_rotation(Quat r) {
+    // First column:
+    mult_mat[0] = 1 - 2 * r.q[2] * r.q[2] - 2 * r.q[3] * r.q[3];
+    mult_mat[1] = 2 * (r.q[1] * r.q[2] + r.q[3] * r.q[0]);
+    mult_mat[2] = 2 * (r.q[1] * r.q[3] - r.q[2] * r.q[0]);
+    mult_mat[3] = 0;
+
+    // Second column:
+    mult_mat[4] = 2 * (r.q[1] * r.q[2] - r.q[3] * r.q[0]);
+    mult_mat[5] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[3] * r.q[3];
+    mult_mat[6] = 2 * (r.q[3] * r.q[2] + r.q[1] * r.q[0]);
+    mult_mat[7] = 0;
+
+    // Third column:
+    mult_mat[8] = 2 * (r.q[1] * r.q[3] + r.q[2] * r.q[0]);
+    mult_mat[9] = 2 * (r.q[3] * r.q[2] - r.q[1] * r.q[0]); 
+    mult_mat[10] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[2] * r.q[2];
+    mult_mat[11] = 0;
+
+    // Fourth column:
+    mult_mat[12] = 0;
+    mult_mat[13] = 0;
+    mult_mat[14] = 0;	
+    mult_mat[15] = 1;
+}
+
+void set_current_rotation_transpose(Quat r) {
+    // First column:
+    mult_mat[0] = 1 - 2 * r.q[2] * r.q[2] - 2 * r.q[3] * r.q[3];
+    mult_mat[4] = 2 * (r.q[1] * r.q[2] + r.q[3] * r.q[0]);
+    mult_mat[8] = 2 * (r.q[1] * r.q[3] - r.q[2] * r.q[0]);
+    mult_mat[12] = 0;
+
+    // Second column:
+    mult_mat[1] = 2 * (r.q[1] * r.q[2] - r.q[3] * r.q[0]);
+    mult_mat[5] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[3] * r.q[3];
+    mult_mat[9] = 2 * (r.q[3] * r.q[2] + r.q[1] * r.q[0]);
+    mult_mat[13] = 0;
+
+    // Third column:
+    mult_mat[2] = 2 * (r.q[1] * r.q[3] + r.q[2] * r.q[0]);
+    mult_mat[6] = 2 * (r.q[3] * r.q[2] - r.q[1] * r.q[0]); 
+    mult_mat[10] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[2] * r.q[2];
+    mult_mat[14] = 0;
+
+    // Fourth column:
+    mult_mat[3] = 0;
+    mult_mat[7] = 0;
+    mult_mat[11] = 0;	
+    mult_mat[15] = 1;
+}
+
 /* 'mouse_pressed function:
  * 
  * This function is meant to respond to mouse clicks and releases. The
@@ -704,6 +790,8 @@ void mouse_pressed(int button, int state, int x, int y)
         /* Mouse is no longer being pressed, so set our indicator to false.
          */
         is_pressed = false;
+	last_rot = cur_rot * last_rot;
+	cur_rot = 1;
     }
 }
 
@@ -722,7 +810,7 @@ void mouse_moved(int x, int y)
 {
     /* If the left-mouse button is being clicked down...
      */
-    if(is_pressed)
+    if(is_pressed && !arcball_mode)
     {
         /* You see in the 'mouse_pressed' function that when the left-mouse button
          * is first clicked down, we store the screen coordinates of where the
@@ -779,6 +867,11 @@ void mouse_moved(int x, int y)
          */
         glutPostRedisplay();
     }
+
+    if (is_pressed && arcball_mode) {
+	cur_rot = compute_rotation(x, y, mouse_x, mouse_y, xres, yres);
+	glutPostRedisplay();
+    }
 }
 
 /* 'deg2rad' function:
@@ -822,8 +915,14 @@ void key_pressed(unsigned char key, int x, int y)
          */
         glutPostRedisplay();
     }
+    else if(key == 'r')
+    {
+	arcball_mode = !arcball_mode;
+	glutPostRedisplay();
+    }
     else
     {
+	arcball_mode = false;
         /* These might look a bit complicated, but all we are really doing is
          * using our current change in the horizontal camera angle (ie. the
          * value of 'x_view_angle') to compute the correct changes in our x and
@@ -881,8 +980,8 @@ void key_pressed(unsigned char key, int x, int y)
  */
 int main(int argc, char* argv[])
 {
-    int xres = 500;
-    int yres = 500;
+    xres = 500;
+    yres = 500;
     ifstream scfile;
     map<string, Object> objmap;
     

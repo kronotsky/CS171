@@ -146,8 +146,8 @@ public:
 
     const Quat conjugate() const {
 	Quat ret(*this);
-	ret *= -1;
-	ret.q[0] *= -1;
+	for (int i = 1; i < 4; i++)
+	    ret.q[i] *= -1;
 	return ret;
     }
 

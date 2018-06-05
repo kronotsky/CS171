@@ -21,7 +21,6 @@ void mouse_moved(int x, int y);
 void key_pressed(unsigned char key, int x, int y);
 
 void set_current_rotation(Quat r);
-void set_current_rotation_transpose(Quat r);
 Quat compute_rotation(int pxc, int pyc, int pxs, int pys, int xres, int yres);
 
 /* Index 0 has the x-coordinate
@@ -380,7 +379,7 @@ void display(void)
      */
 
     // After setting up the screen and the camera, the next step is to post the redisplay:
-    set_current_rotation_transpose(cur_rot * last_rot);
+    set_current_rotation(cur_rot * last_rot);
     glMultMatrixd(mult_mat);
     
     /* Our next step is to set up all the lights in their specified positions.
@@ -686,17 +685,19 @@ Quat compute_rotation(int pxc, int pyc, int pxs, int pys, int xres, int yres) {
     Eigen::Vector3d p1, p2, c;
     double p1x, p1y, p2x, p2y;
     double theta;
-    p1x = (double)(pxs) / (double)(xres) - 1;
-    p2x = (double)(pxc) / (double)(xres) - 1;
-    p1y = (double)(pys) / (double)(yres) - 1;
-    p2y = (double)(pyc) / (double)(yres) - 1;
+    p1x = 2 * (double)(pxs) / (double)(xres) - 1;
+    p2x = 2 * (double)(pxc) / (double)(xres) - 1;
+    p1y = 1 - 2 * (double)(pys) / (double)(yres);
+    p2y = 1 - 2 * (double)(pyc) / (double)(yres);
 
     p1 << p1x, p1y, ((p1x * p1x + p1y * p1y) < 1) ? sqrt(1 - p1x * p1x - p1y * p1y) : 0;
     p2 << p2x, p2y, ((p2x * p2x + p2y * p2y) < 1) ? sqrt(1 - p2x * p2x - p2y * p2y) : 0;
 
     theta = p1.dot(p2) / (p1.norm() * p2.norm());
     theta = acos(min(1.0, theta));
-    c = p1.cross(p2) * sin(theta / 2);
+    c = p1.cross(p2);
+    c.normalize();
+    c *= sin(theta / 2);
     return Quat(cos(theta / 2), c(0), c(1), c(2));
 }
 
@@ -723,32 +724,6 @@ void set_current_rotation(Quat r) {
     mult_mat[12] = 0;
     mult_mat[13] = 0;
     mult_mat[14] = 0;	
-    mult_mat[15] = 1;
-}
-
-void set_current_rotation_transpose(Quat r) {
-    // First column:
-    mult_mat[0] = 1 - 2 * r.q[2] * r.q[2] - 2 * r.q[3] * r.q[3];
-    mult_mat[4] = 2 * (r.q[1] * r.q[2] + r.q[3] * r.q[0]);
-    mult_mat[8] = 2 * (r.q[1] * r.q[3] - r.q[2] * r.q[0]);
-    mult_mat[12] = 0;
-
-    // Second column:
-    mult_mat[1] = 2 * (r.q[1] * r.q[2] - r.q[3] * r.q[0]);
-    mult_mat[5] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[3] * r.q[3];
-    mult_mat[9] = 2 * (r.q[3] * r.q[2] + r.q[1] * r.q[0]);
-    mult_mat[13] = 0;
-
-    // Third column:
-    mult_mat[2] = 2 * (r.q[1] * r.q[3] + r.q[2] * r.q[0]);
-    mult_mat[6] = 2 * (r.q[3] * r.q[2] - r.q[1] * r.q[0]); 
-    mult_mat[10] = 1 - 2 * r.q[1] * r.q[1] - 2 * r.q[2] * r.q[2];
-    mult_mat[14] = 0;
-
-    // Fourth column:
-    mult_mat[3] = 0;
-    mult_mat[7] = 0;
-    mult_mat[11] = 0;	
     mult_mat[15] = 1;
 }
 
@@ -980,8 +955,20 @@ void key_pressed(unsigned char key, int x, int y)
  */
 int main(int argc, char* argv[])
 {
-    xres = 500;
-    yres = 500;
+    if (argc != 4) {
+	cout << "Usage: " << argv[1] << " [scenefile.txt] [int xres] [int yres]"\
+	     << endl;
+	return 1;
+    }
+    try {
+	xres = stoi(argv[2]);
+	yres = stoi(argv[3]);
+    }
+    catch (invalid_argument) {
+	cout << "Usage: " << argv[1] << " [scenefile.txt] [int xres] [int yres]"\
+	     << endl;
+	return 1;
+    }
     ifstream scfile;
     map<string, Object> objmap;
     
